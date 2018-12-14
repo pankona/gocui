@@ -296,6 +296,18 @@ func (v *View) writeRune(x, y int, ch rune) error {
 
 	olen := len(v.lines[y])
 
+	// calculate cell index by x
+	tx := x
+	var index int
+	for i := 0; i < x; i++ {
+		index++
+		tx -= runewidth.RuneWidth(v.lines[y][i].chr)
+		if tx <= 0 {
+			break
+		}
+	}
+	x = index
+
 	var s []cell
 	if x >= len(v.lines[y]) {
 		s = make([]cell, x-len(v.lines[y])+1)
@@ -327,7 +339,7 @@ func (v *View) deleteRune(x, y int) (int, error) {
 		return 0, err
 	}
 
-	if x < 0 || y < 0 || y >= len(v.lines) || x >= len(v.lines[y]) {
+	if x < 0 || y < 0 || y >= len(v.lines) || x >= lineWidth(v.lines[y]) {
 		return 0, errors.New("invalid point")
 	}
 
