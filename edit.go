@@ -251,8 +251,17 @@ func (v *View) moveCursor(dx, dy int, writeMode bool) {
 			v.cx = cx
 		} else {
 			if cx >= maxX {
-				v.ox += cx - maxX + 1
-				v.cx = maxX
+				tw := 0
+				var olastRune rune
+				for i := 0; i < cx-maxX+1; i++ {
+					r := v.lines[0][i].chr
+					tw += runewidth.RuneWidth(r)
+					olastRune = r
+				}
+				v.ox += tw
+				// depends on last rune in origin (hidden part),
+				// cursor position should change
+				v.cx = maxX - 2 + (runewidth.RuneWidth(olastRune) % 2)
 			} else {
 				v.cx = cx
 			}
@@ -296,17 +305,7 @@ func (v *View) writeRune(x, y int, ch rune) error {
 
 	olen := len(v.lines[y])
 
-	// calculate cell index by x
-	tx := x
-	var index int
-	for i := 0; i < x; i++ {
-		index++
-		tx -= runewidth.RuneWidth(v.lines[y][i].chr)
-		if tx <= 0 {
-			break
-		}
-	}
-	x = index
+	x = v.cellIndex(v.lines[y], x)
 
 	var s []cell
 	if x >= len(v.lines[y]) {
@@ -326,6 +325,20 @@ func (v *View) writeRune(x, y int, ch rune) error {
 	}
 
 	return nil
+}
+
+// cellIndex calculate cell index by x with considering wide character.
+func (v *View) cellIndex(line []cell, x int) int {
+	tx := x
+	var index int
+	for i := 0; i < x && i < len(line); i++ {
+		index++
+		tx -= runewidth.RuneWidth(line[i].chr)
+		if tx <= 0 {
+			break
+		}
+	}
+	return index
 }
 
 // deleteRune removes a rune from the view's internal buffer, at the
