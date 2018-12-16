@@ -348,8 +348,10 @@ func (v *View) draw() error {
 			break
 		}
 		x := 0
-		for j, c := range vline.line {
-			if j < v.ox {
+		tx := v.ox
+		for _, c := range vline.line {
+			if tx > 0 {
+				tx -= runewidth.RuneWidth(c.chr)
 				continue
 			}
 			if x >= maxX {
