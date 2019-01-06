@@ -63,51 +63,69 @@ func (v *View) EditWrite(ch rune) {
 	v.moveCursor(w, 0, true)
 }
 
-// EditDelete deletes a rune at the cursor position. back determines the
-// direction.
+func (v *View) deleteWithBack(x, y int) {
+	maxX, _ := v.Size()
+
+	// middle/end of the line
+	if x != 0 {
+		n, _ := v.deleteRune(v.cx-1, v.cy)
+		v.MoveCursor(-n, 0, true)
+		return
+	}
+
+	// start of the line
+	if y < 1 {
+		return
+	}
+
+	var maxPrevWidth int
+	if v.Wrap {
+		maxPrevWidth = maxX
+	} else {
+		maxPrevWidth = maxInt
+	}
+
+	// regular line
+	if v.viewLines[y].linesX == 0 {
+		v.mergeLines(v.cy - 1)
+		if len(v.viewLines[y-1].line) < maxPrevWidth {
+			v.MoveCursor(-1, 0, true)
+		}
+		return
+	}
+
+	// wrapped line
+	n, _ := v.deleteRune(len(v.viewLines[y-1].line)-1, v.cy-1)
+	v.MoveCursor(-n, 0, true)
+}
+
+// EditDelete deletes a rune at the cursor position.
+// back determines the direction.
 func (v *View) EditDelete(back bool) {
 	x, y := v.ox+v.cx, v.oy+v.cy
+
 	if y < 0 {
 		return
-	} else if y >= len(v.viewLines) {
+	}
+
+	if y >= len(v.viewLines) {
 		v.MoveCursor(-1, 0, true)
 		return
 	}
 
-	maxX, _ := v.Size()
 	if back {
-		if x == 0 { // start of the line
-			if y < 1 {
-				return
-			}
-
-			var maxPrevWidth int
-			if v.Wrap {
-				maxPrevWidth = maxX
-			} else {
-				maxPrevWidth = maxInt
-			}
-
-			if v.viewLines[y].linesX == 0 { // regular line
-				v.mergeLines(v.cy - 1)
-				if len(v.viewLines[y-1].line) < maxPrevWidth {
-					v.MoveCursor(-1, 0, true)
-				}
-			} else { // wrapped line
-				n, _ := v.deleteRune(len(v.viewLines[y-1].line)-1, v.cy-1)
-				v.MoveCursor(-n, 0, true)
-			}
-		} else { // middle/end of the line
-			n, _ := v.deleteRune(v.cx-1, v.cy)
-			v.MoveCursor(-n, 0, true)
-		}
-	} else {
-		if x == len(v.viewLines[y].line) { // end of the line
-			v.mergeLines(v.cy)
-		} else { // start/middle of the line
-			v.deleteRune(v.cx, v.cy)
-		}
+		v.deleteWithBack(x, y)
+		return
 	}
+
+	// x indicates end of the line, and back is false.
+	if x == len(v.viewLines[y].line) {
+		v.mergeLines(v.cy)
+		return
+	}
+
+	// start/middle of the line
+	v.deleteRune(v.cx, v.cy)
 }
 
 // EditNewLine inserts a new line under the cursor.
