@@ -269,17 +269,33 @@ func (v *View) moveCursor(dx, dy int, writeMode bool) {
 			v.cx = cx
 		} else {
 			if cx >= maxX {
-				tw := 0
-				var olastRune rune
-				for i := 0; i < cx-maxX+1; i++ {
-					r := v.lines[0][i].chr
-					tw += runewidth.RuneWidth(r)
-					olastRune = r
+				// update v.ox and v.cx
+				// TODO: write test for here
+
+				var tw int
+				var oxIndex int
+				ci := v.cellIndex(v.lines[0], v.ox+cx)
+
+				for i := ci; i > 0; i-- {
+					if i >= len(v.lines[0]) {
+						tw += 1 // blank as half width character
+					} else {
+						tw += runewidth.RuneWidth(v.lines[0][i].chr)
+					}
+					if tw > maxX {
+						oxIndex = i
+						break
+					}
 				}
-				v.ox += tw
-				// depends on last rune in origin (hidden part),
-				// cursor position should change
-				v.cx = maxX - 2 + (runewidth.RuneWidth(olastRune) % 2)
+
+				var w int
+				for i := 0; i < oxIndex+1; i++ {
+					w += runewidth.RuneWidth(v.lines[0][i].chr)
+				}
+				v.ox = w
+
+				oLastRune := v.lines[0][oxIndex].chr
+				v.cx = maxX - 2 + (runewidth.RuneWidth(oLastRune) % 2)
 			} else {
 				v.cx = cx
 			}
